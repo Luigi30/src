@@ -35,4 +35,13 @@ cdev_decl(mm);
 cdev_decl(fd);
 bdev_decl(fd);
 
+cdev_decl(lcd);
+
+/* open, close, write, ioctl */
+#define cdev_lcd_init(c,n) { \
+        dev_init(c,n,open), dev_init(c,n,close), \
+        (dev_type_read((*))) enodev, dev_init(c,n,write), \
+        dev_init(c,n,ioctl), (dev_type_stop((*))) enodev, \
+        0, seltrue, (dev_type_mmap((*))) enodev }
+
 #endif /* _MACHINE_CONF_H_ */

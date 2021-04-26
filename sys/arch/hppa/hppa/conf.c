@@ -121,6 +121,7 @@ cdev_decl(pci);
 
 #include "fuse.h"
 #include "switch.h"
+#include "lcd.h"
 
 struct cdevsw   cdevsw[] =
 {
@@ -193,6 +194,7 @@ struct cdevsw   cdevsw[] =
 	cdev_fido_init(NFIDO,fido),	/* 61: FIDO/U2F security key */
 	cdev_pppx_init(NPPPX,pppac),	/* 62: PPP Access Concentrator */
 	cdev_ujoy_init(NUJOY,ujoy),	/* 63: USB joystick/gamecontroller */
+	cdev_lcd_init(NLCD,lcd),        /* 64: LCD front panel */
 };
 int nchrdev = nitems(cdevsw);
 

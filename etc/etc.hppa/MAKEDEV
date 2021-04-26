@@ -84,6 +84,7 @@
 #	video*	Video V4L2 devices
 #	vscsi*	Virtual SCSI controller
 #	switch*	Switch driver
+#	lcd*	LCD panel
 #	kstat	Kernel Statistics
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 T=$0
@@ -231,8 +232,13 @@ std)
 	M pdc		c 22 0 640 operator
 	;;
 
+
 kstat)
 	M kstat c 51 0 640
+	;;
+
+lcd*)
+	M lcd$U c 64 0 $U 600
 	;;
 
 switch*)
@@ -506,15 +512,15 @@ local)
 	;;
 
 all)
-	R switch0 switch1 switch2 switch3 vnd0 vnd1 vnd2 vnd3 sd0 sd1
-	R sd2 sd3 sd4 sd5 sd6 sd7 sd8 sd9 cd0 cd1 rd0 tap0 tap1 tap2
-	R tap3 tun0 tun1 tun2 tun3 pty0 fd1 fd1B fd1C fd1D fd1E fd1F
-	R fd1G fd1H fd0 fd0B fd0C fd0D fd0E fd0F fd0G fd0H diskmap
-	R vscsi0 bio ch0 audio0 audio1 audio2 audio3 kstat dt bpf fuse
-	R pppac pppx hotplug ptm local wscons pci0 pci1 pci2 pci3 uall
-	R video0 video1 uk0 random lpa0 lpa1 lpa2 lpt0 lpt1 lpt2 tty00
-	R tty01 tty02 tty03 tty04 tty05 tty06 tty07 tty08 tty09 tty0a
-	R tty0b pf wd0 wd1 wd2 wd3 std st0 st1 fd
+	R lcd0 switch0 switch1 switch2 switch3 vnd0 vnd1 vnd2 vnd3
+	R sd0 sd1 sd2 sd3 sd4 sd5 sd6 sd7 sd8 sd9 cd0 cd1 rd0 tap0
+	R tap1 tap2 tap3 tun0 tun1 tun2 tun3 pty0 fd1 fd1B fd1C fd1D
+	R fd1E fd1F fd1G fd1H fd0 fd0B fd0C fd0D fd0E fd0F fd0G fd0H
+	R diskmap vscsi0 bio ch0 audio0 audio1 audio2 audio3 kstat dt
+	R bpf fuse pppac pppx hotplug ptm local wscons pci0 pci1 pci2
+	R pci3 uall video0 video1 uk0 random lpa0 lpa1 lpa2 lpt0 lpt1
+	R lpt2 tty00 tty01 tty02 tty03 tty04 tty05 tty06 tty07 tty08
+	R tty09 tty0a tty0b pf wd0 wd1 wd2 wd3 std st0 st1 fd
 	;;
 
 wd*|sd*)

@@ -21,11 +21,16 @@
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/timeout.h>
+#include <sys/ioctl.h>
+#include <sys/fcntl.h>
 
 #include <machine/autoconf.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/pdc.h>
+#include <machine/lcd.h>
+
+#define CHARACTER_SLOTS 32
 
 #define LCD_CLS		0x01
 #define LCD_HOME	0x02
@@ -43,6 +48,8 @@ struct lcd_softc {
 	struct timeout		sc_to;
 	int			sc_on;
 	struct blink_led	sc_blink;
+
+        int                     sc_opened;
 };
 
 int	lcd_match(struct device *, void *, void *);
@@ -53,14 +60,21 @@ struct cfattach lcd_ca = {
 };
 
 struct cfdriver lcd_cd = {
-	NULL, "lcd", DV_DULL
+        NULL, "lcd", DV_DULL, 0
 };
 
+struct lcd_softc *panel;
+
 void	lcd_mountroot(struct device *);
-void	lcd_write(struct lcd_softc *, const char *);
+void	lcd_print(struct lcd_softc *, const char *);
 void	lcd_blink(void *, int);
 void	lcd_blink_finish(void *);
 
+/* Command handlers */
+void    lcd_clear(void *);
+void    lcd_home(void *);
+
+/* Device routines */
 int
 lcd_match(struct device *parent, void *match, void *aux)
 {
@@ -76,7 +90,8 @@ void
 lcd_attach(struct device *parent, struct device *self, void *aux)
 {
 	struct lcd_softc *sc = (struct lcd_softc *)self;
-	struct confargs *ca = aux;
+	panel = (struct lcd_softc *)self;
+        struct confargs *ca = aux;
 	struct pdc_chassis_lcd *pdc_lcd = (void *)ca->ca_pdc_iodc_read;
 	int i;
 
@@ -119,15 +134,126 @@ lcd_mountroot(struct device *self)
 
 	bus_space_write_1(sc->sc_iot, sc->sc_cmdh, 0, LCD_LOCATE(0, 0));
 	delay(sc->sc_delay);
-	lcd_write(sc, "OpenBSD/" MACHINE);
+
+	lcd_print(sc, "OpenBSD/" MACHINE);
 }
 
-void
-lcd_write(struct lcd_softc *sc, const char *str)
+/*
+ *  open/close/write/ioctl
+ */
+int
+lcdopen(dev_t dev, int flags, int fmt, struct proc *pc)
 {
+	printf("lcdopen\n");
+	struct lcd_softc *sc;
+	if((sc = lcd_cd.cd_devs[0]) == NULL)
+		return ENXIO;
+	if(sc->sc_opened)
+		return EBUSY;
+
+	panel->sc_opened = 1;
+
+	return 0;
+}
+
+int
+lcdclose(dev_t dev, int flags, int fmt, struct proc *p)
+{
+	struct lcd_softc *sc = lcd_cd.cd_devs[0];
+
+	printf("lcdclose\n");
+	sc->sc_opened = 0;
+
+	return 0;
+}
+
+int
+lcdwrite(dev_t dev, struct uio *uio, int flag)
+{
+	int error;
+	size_t len;
+	char buf[CHARACTER_SLOTS];
+
+	struct lcd_softc *sc = lcd_cd.cd_devs[0];
+	if(sc == NULL)
+		return EIO;
+
+	printf("lcdwrite to sc %p\n", sc);
+
+	memset(buf, 0, CHARACTER_SLOTS);
+
+	len = uio->uio_resid;
+
+	if(len > CHARACTER_SLOTS)
+		return EIO;
+
+	error = uiomove(buf, len, uio);
+	if(error)
+		return EIO;
+
+	lcd_print(sc, buf);
+
+	return 0;
+}
+
+int
+lcdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
+{
+	/* Check for write permission on a write command. */
+	printf("lcdioctl\n");
+
+	/* TODO: Implement ioctl commands! */
+
+	/* Check write access for write commands. */
+	switch(cmd) {
+	case LCDCLS:
+	case LCDHOME:
+		if ((flag & FWRITE) == 0)
+			return EACCES;
+		break;
+	}
+
+	struct lcd_softc *sc = lcd_cd.cd_devs[0];
+
+	switch(cmd) {
+	case LCDCLS:
+		lcd_clear(sc);
+		break;
+
+	case LCDHOME:
+		lcd_home(sc);
+		break;
+
+	default:
+		return ENOTTY;
+	}
+
+	return ENOTTY;
+}
+
+/* internal */
+
+
+void
+lcd_print(struct lcd_softc *sc, const char *str)
+{
+	printf("lcd_print: Writing string %s to sc %p\n", str, sc);
 	while (*str) {
-		bus_space_write_1(sc->sc_iot, sc->sc_datah, 0, *str++);
-		delay(sc->sc_delay);
+		if(*str == LCD_CLS)
+		{
+			lcd_clear(sc);
+			str++;
+		}
+		else if(*str == LCD_HOME)
+		{
+			lcd_home(sc);
+			str++;
+		}
+		else
+		{
+			bus_space_write_1(sc->sc_iot, sc->sc_datah, 0, *str++);
+			delay(sc->sc_delay);
+		}
 	}
 }
 
@@ -153,4 +279,23 @@ lcd_blink_finish(void *v)
 		data = sc->sc_heartbeat[2];
 
 	bus_space_write_1(sc->sc_iot, sc->sc_datah, 0, data);
+}
+
+/* Command helpers */
+void
+lcd_clear(void *v)
+{
+	struct lcd_softc *sc = v;
+
+	bus_space_write_1(sc->sc_iot, sc->sc_cmdh, 0, LCD_CLS);
+	delay(100 * sc->sc_delay);
+}
+
+void
+lcd_home(void *v)
+{
+	struct lcd_softc *sc = v;
+
+	bus_space_write_1(sc->sc_iot, sc->sc_cmdh, 0, LCD_LOCATE(0, 0));
+	delay(sc->sc_delay);
 }
